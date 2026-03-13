@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Lightbulb, ArrowLeft, CheckCircle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -74,9 +76,7 @@ export function ChatInterface({
     if (streaming) return;
 
     const userMessage: ChatMessage = { role: "user", content };
-    const updatedMessages = isAutoStart
-      ? messages
-      : [...messages, userMessage];
+    const updatedMessages = [...messages, userMessage];
 
     if (!isAutoStart) {
       setMessages(updatedMessages);
@@ -263,7 +263,15 @@ export function ChatInterface({
                     : "bg-bg-tertiary text-text-primary rounded-bl-md"
                 )}
               >
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                {msg.role === "assistant" ? (
+                  <div className="chat-markdown">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                )}
               </div>
             </motion.div>
           ))}
