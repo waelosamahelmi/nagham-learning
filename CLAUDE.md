@@ -8,93 +8,123 @@ NaghamOS is a gamified, AI-powered learning platform built for a single learner 
 
 ## Tech Stack
 
-- **Framework:** Next.js 14+ (App Router) with TypeScript
-- **Styling:** Tailwind CSS + CSS variables for theming (dark mode default)
-- **Animations:** Framer Motion + GSAP (ScrollTrigger, SplitText)
-- **UI Base:** shadcn/ui (heavily customized)
-- **Database:** Supabase (PostgreSQL + Auth + Realtime + Storage)
-- **AI Engine:** Z.ai GLM-4.7 via OpenAI-compatible SDK, OpenRouter as fallback
-- **State:** Zustand
+- **Framework:** Next.js 16 (App Router) with TypeScript
+- **Styling:** Tailwind CSS v4 + CSS variables for theming (dark mode default)
+- **Animations:** Framer Motion (shared presets in `lib/animations.ts`)
+- **UI Base:** Custom component library in `components/ui/` (Button, Card, Badge, Progress, Input, Dialog, Avatar, Skeleton, Toast)
+- **Database:** Supabase (PostgreSQL + Auth + RLS)
+- **AI Engine:** Z.ai GLM-4.7 via OpenAI SDK, OpenRouter as fallback — lazy-initialized in `lib/ai.ts`
+- **State:** Zustand (`stores/user-store.ts`)
 - **Deployment:** Vercel
-- **Fonts:** Syne (headings) + Inter (body) + IBM Plex Arabic (Arabic support)
-- **Audio:** Tone.js for achievement sounds
-- **Charts:** Recharts
+- **Fonts:** Syne (headings) + Inter (body) loaded via Google Fonts `<link>` tag
+- **i18n:** Custom hook-based (`lib/i18n/`) with English + Arabic translations
 
 ## Commands
 
 ```bash
-# Development
 npm run dev          # Start dev server (localhost:3000)
 npm run build        # Production build
 npm run lint         # Run ESLint
 npm run type-check   # TypeScript checking (tsc --noEmit)
+```
 
-# Database
-npx supabase start   # Start local Supabase
-npx supabase db push # Push schema changes
-npx supabase gen types typescript --local > lib/database.types.ts  # Generate types
+### Database Setup
+```bash
+# Apply schema to Supabase project
+# 1. Run supabase/schema.sql (tables + RLS policies)
+# 2. Run supabase/functions.sql (increment_xp, update_streak, check_achievements RPCs)
+# 3. Run supabase/seed.sql (skill tracks, modules, lessons, achievements)
 ```
 
 ## Architecture
 
-### Route Structure (App Router)
+### Route Structure
 ```
-app/
-  (auth)/login/          → Login page
-  (app)/                 → Authenticated layout (sidebar + top bar)
-    dashboard/           → Main hub with progress, streaks, recommendations
-    skill/[track]/       → Skill track overview (7 tracks)
-    skill/[track]/[module]/[lesson]/ → AI-powered interactive lesson
-    projects/            → Project gallery
-    achievements/        → Trophy room
-    profile/             → Settings, language toggle
-    inspiration/         → Curated design feed
-    mentor/              → Mentor-only dashboard (role-gated)
+src/app/
+  (auth)/login/                    → Login page
+  (app)/                           → Authenticated layout (sidebar + top bar + gamification overlays)
+    dashboard/                     → Main hub (welcome, continue learning, recommendations, tracks, achievements, mentor messages)
+    skill/[track]/                 → Skill track overview with modules and lessons
+    skill/[track]/[module]/[lesson]/ → AI-powered interactive lesson (streaming chat)
+    projects/                      → Project gallery
+    projects/[id]/                 → Project detail (submit/review)
+    achievements/                  → Trophy room
+    profile/                       → Stats, level roadmap, settings, language toggle
+    inspiration/                   → Masonry grid curated feed with track filters
+    mentor/                        → Mentor dashboard (role-gated via middleware)
+    mentor/assign/                 → Assign challenges
+    mentor/messages/               → Send motivational messages
+    mentor/award-xp/               → Award bonus XP
+  api/ai/                          → Non-streaming AI endpoint
+  api/ai/stream/                   → SSE streaming AI endpoint
+  api/auth/login/                  → Login endpoint
+  api/auth/logout/                 → Logout endpoint
 ```
 
 ### Key Directories
 ```
-lib/
-  ai.ts               → AI provider config (Z.ai primary, OpenRouter fallback)
+src/lib/
+  ai.ts                → Dual AI provider (Z.ai + OpenRouter) with lazy init and auto-fallback
+  ai-system-prompt.ts  → NaghamOS teaching persona prompt builder
+  animations.ts        → Shared Framer Motion variants (fadeInUp, staggerContainer, etc.)
+  xp.ts                → 15-level system, XP rewards, level calculations
+  achievements.ts      → Achievement definitions with i18n
+  constants.ts         → Skill track definitions with colors and i18n names
+  recommendations.ts   → Daily recommendation algorithm (track balance + momentum + variety)
+  utils.ts             → cn() utility (clsx + tailwind-merge)
   supabase/
     client.ts          → Browser Supabase client
-    server.ts          → Server Supabase client
-    middleware.ts       → Auth middleware
-  animations.ts        → Shared Framer Motion animation configs
-  xp.ts               → XP economy constants and level calculations
-  achievements.ts      → Achievement condition checking
-components/
-  ui/                  → shadcn/ui base components (customized)
-  dashboard/           → Dashboard widgets
-  lesson/              → AI chat interface components
-  gamification/        → XP counter, streak fire, level-up celebration
-stores/                → Zustand stores
+    server.ts          → Server Supabase client (cookies-based)
+    actions.ts         → Server actions (getCurrentUser, getUserLevel)
+    middleware.ts      → Session refresh helper
+
+src/components/
+  ui/                  → Base components: Button, Card, Badge, Progress, Input, Textarea, Dialog, Avatar, Skeleton, Toast, Sidebar, TopBar
+  dashboard/           → WelcomeCard, SkillTracksGrid, TodayRecommended, ContinueLearning, RecentAchievements, MentorMessage, ActivityHeatmap, SkillRadarChart
+  lesson/              → ChatInterface (streaming AI chat with quick replies, hints, auto-save)
+  gamification/        → LevelUpCelebration (particle animation), AchievementPopup, XPCounter (animated), StreakFire
+  user-hydrator.tsx    → Client-side user state hydration from Supabase
+
+src/stores/
+  user-store.ts        → Zustand store (user profile, XP, streak, level, language)
+
+src/lib/i18n/
+  locales.ts           → EN + AR translations for all UI strings
+  use-translations.ts  → useTranslations() hook
+
+supabase/
+  schema.sql           → Full database schema with RLS policies
+  functions.sql        → PostgreSQL RPCs (increment_xp, update_streak, check_achievements, log_daily_activity)
+  seed.sql             → Skill tracks, modules, lessons (Figma, AI Tools, Graphic Design), achievements
 ```
 
 ### AI Provider System
 
-Located in `lib/ai.ts`. Uses OpenAI SDK with two providers:
+`lib/ai.ts` uses lazy-initialized OpenAI clients (won't crash without API keys at build time):
 - **Z.ai** (primary): `glm-4.7` for lessons, `glm-4.7-flash` for quizzes, `glm-4.6v` for vision
 - **OpenRouter** (fallback): `z-ai/glm-4.5-air:free`
 
-Switch via `AI_PROVIDER` env var. Auto-fallback on failure. All AI calls go through server-side API routes only (never expose keys to client).
+Switch via `AI_PROVIDER` env var. Auto-fallback on failure. All AI calls go through server-side API routes (`/api/ai` and `/api/ai/stream`).
 
-### Two User Roles
-- **Learner** (Nagham): Sees dashboard, lessons, achievements, projects
-- **Mentor** (Wael): Additional `/mentor` routes for analytics, assigning challenges, sending messages, awarding XP
+### Auth & Middleware
 
-### Gamification
-- XP ledger pattern (append-only `xp_ledger` table, `user_levels` for aggregates)
-- Level system: 15 levels from "Seedling" (0 XP) to "Nagham-Level" (15,000 XP)
-- Streak: consecutive days with 1+ lesson or 15min activity; multiplier = 10 × streak_count
-- Achievements: milestone, streak, skill, social, hidden categories
+`src/middleware.ts` handles:
+- Redirecting unauthenticated users to `/login`
+- Redirecting authenticated users away from `/login` to `/dashboard`
+- Role-gating `/mentor` routes (checks `profiles.role`)
+
+### Gamification System
+- **XP**: Append-only `xp_ledger` table → `increment_xp()` RPC updates `user_levels`
+- **Levels**: 15 levels ("Seedling" 0 XP → "Nagham-Level" 15,000 XP)
+- **Streaks**: `update_streak()` RPC handles consecutive day tracking with auto XP bonus
+- **Achievements**: `check_achievements()` RPC checks milestone/streak conditions; hidden achievements exist
+- **Celebrations**: `LevelUpCelebration` component with particle effects, `AchievementPopup` for unlock notifications
 
 ### Design System
-- Theme: "neon oasis" — deep dark backgrounds (`#0A0A0F`) with glowing skill-track accent colors
-- Each skill track has a signature color (CSS variable like `--color-figma: #A259FF`)
+- Theme: "neon oasis" — `#0A0A0F` base with glowing skill-track accent colors
+- 7 skill track colors defined as CSS custom properties in `globals.css` under `@theme`
 - Glassmorphism cards: `backdrop-blur-xl bg-white/5 border border-white/10`
-- All CSS color tokens defined as CSS variables in globals.css
-- i18n: English + Arabic with RTL support via `next-intl` and Tailwind `rtl:` variants
+- Tailwind v4 with `@tailwindcss/postcss`
 
 ### Environment Variables
 ```
@@ -104,10 +134,10 @@ NEXT_PUBLIC_APP_URL
 ```
 
 ## Quality Standards
-- Dark mode must have no white flashes; proper WCAG contrast ratios
-- Animations at 60fps; use `will-change` and GPU-accelerated properties
-- AI responses must stream (SSE) for smooth UX
-- All async operations need loading skeletons (shimmer effect, not spinners)
-- Streak calculations must handle Europe/Helsinki timezone correctly
-- RTL layout must work when Arabic is selected
+- Dark mode: no white flashes, proper WCAG contrast ratios
+- Animations at 60fps using Framer Motion (GPU-accelerated transforms)
+- AI responses stream via SSE for smooth UX
+- All async operations use Skeleton loading states (shimmer, not spinners)
+- Streak calculations use `Europe/Helsinki` timezone
 - Mobile-responsive: primary 1440px, tablet 768px, mobile 375px
+- i18n: all UI strings translated, RTL support when Arabic selected

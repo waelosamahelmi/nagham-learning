@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,10 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Fonts loaded via CSS - replace with next/font/google when deploying with internet access */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
-          href="https://fonts.googleapis.com"
+          href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
         <link
@@ -26,7 +27,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <ToastProvider />
+      </body>
     </html>
   );
 }
