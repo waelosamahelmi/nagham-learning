@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  /* Base */
+  --color-bg-primary: #0A0A0F;
+  --color-bg-secondary: #12121A;
+  --color-bg-tertiary: #1A1A2E;
+  --color-bg-hover: #22223A;
+
+  /* Text */
+  --color-text-primary: #F0F0F5;
+  --color-text-secondary: #8888A0;
+  --color-text-tertiary: #55556A;
+
+  /* Skill Track Colors */
+  --color-figma: #A259FF;
+  --color-photoshop: #31A8FF;
+  --color-illustrator: #FF9A00;
+  --color-graphic: #FF5A85;
+  --color-blender: #E87D0D;
+  --color-ai: #83EDFF;
+  --color-coding: #DCFF7B;
+
+  /* Gamification */
+  --color-xp-gold: #FFD700;
+  --color-streak-fire: #FF6B35;
+  --color-level-up: #00FF88;
+  --color-achievement-glow: #FFEEB6;
+
+  /* Borders */
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-active: rgba(255, 255, 255, 0.12);
+
+  /* Fonts */
+  --font-heading: "Syne", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-arabic: "IBM Plex Arabic", "Syne", sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
