@@ -4,6 +4,13 @@ import { NextResponse, type NextRequest } from "next/server";
 const publicRoutes = ["/", "/login"];
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Skip auth check for API auth routes
+  if (pathname.startsWith("/api/auth/")) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -31,7 +38,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
   const isPublicRoute = publicRoutes.includes(pathname);
 
   // Redirect unauthenticated users to login
@@ -54,7 +60,7 @@ export async function middleware(request: NextRequest) {
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     if (profile?.role !== "mentor") {
       const url = request.nextUrl.clone();

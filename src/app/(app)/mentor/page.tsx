@@ -68,7 +68,7 @@ export default function MentorPage() {
           .from("user_levels")
           .select("*")
           .eq("user_id", learner.id)
-          .single(),
+          .maybeSingle(),
         supabase
           .from("daily_activity")
           .select("*")

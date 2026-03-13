@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[AI Stream API]", error);
+    console.error("[AI Stream API]", error instanceof Error ? error.message : error);
     return new Response(
-      JSON.stringify({ error: "AI request failed" }),
+      JSON.stringify({ error: "AI request failed", detail: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

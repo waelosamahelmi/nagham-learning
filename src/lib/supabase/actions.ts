@@ -38,7 +38,7 @@ export async function getCurrentUser() {
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   return profile;
 }
@@ -55,7 +55,7 @@ export async function getUserLevel() {
     .from("user_levels")
     .select("*")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   return level;
 }

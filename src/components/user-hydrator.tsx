@@ -17,8 +17,8 @@ export function UserHydrator({ children }: { children: ReactNode }) {
       if (!user) return;
 
       const [{ data: profile }, { data: level }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", user.id).single(),
-        supabase.from("user_levels").select("*").eq("user_id", user.id).single(),
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase.from("user_levels").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
 
       if (profile) {

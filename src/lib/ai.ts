@@ -73,17 +73,24 @@ export async function chatWithAI(
     const fallbackClient = getClient(fallbackName);
 
     console.warn(
-      `[AI] ${active} failed, falling back to ${fallbackName}`,
-      error
+      `[AI] ${active} failed (${error instanceof Error ? error.message : "unknown"}), falling back to ${fallbackName}`
     );
 
-    const response = await fallbackClient.chat.completions.create({
-      model: MODELS[fallbackName][tier],
-      messages,
-      temperature: 0.8,
-      stream,
-    });
-    return response;
+    try {
+      const response = await fallbackClient.chat.completions.create({
+        model: MODELS[fallbackName][tier],
+        messages,
+        temperature: 0.8,
+        stream,
+      });
+      return response;
+    } catch (fallbackError) {
+      console.error(
+        `[AI] Fallback ${fallbackName} also failed:`,
+        fallbackError instanceof Error ? fallbackError.message : fallbackError
+      );
+      throw fallbackError;
+    }
   }
 }
 

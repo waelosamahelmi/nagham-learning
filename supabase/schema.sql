@@ -167,6 +167,19 @@ CREATE TABLE IF NOT EXISTS inspiration_items (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Helper function to check mentor role (bypasses RLS to avoid recursion)
+CREATE OR REPLACE FUNCTION public.is_mentor()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'mentor'
+  );
+$$;
+
 -- ─── Row Level Security ─────────────────────────────────────
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE xp_ledger ENABLE ROW LEVEL SECURITY;
@@ -179,56 +192,40 @@ ALTER TABLE daily_activity ENABLE ROW LEVEL SECURITY;
 
 -- Learners can read own data; mentors can read all
 CREATE POLICY "Users can read own profile" ON profiles
-  FOR SELECT USING (auth.uid() = id OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'mentor'
-  ));
+  FOR SELECT USING (auth.uid() = id OR public.is_mentor());
 
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
 CREATE POLICY "Users can read own XP" ON xp_ledger
-  FOR SELECT USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'mentor'
-  ));
+  FOR SELECT USING (user_id = auth.uid() OR public.is_mentor());
 
 CREATE POLICY "Users can read own levels" ON user_levels
-  FOR SELECT USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'mentor'
-  ));
+  FOR SELECT USING (user_id = auth.uid() OR public.is_mentor());
 
 CREATE POLICY "Users can read own lesson progress" ON lesson_progress
-  FOR SELECT USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'mentor'
-  ));
+  FOR SELECT USING (user_id = auth.uid() OR public.is_mentor());
 
 CREATE POLICY "Users can manage own lesson progress" ON lesson_progress
   FOR ALL USING (user_id = auth.uid());
 
 CREATE POLICY "Users can read own projects" ON projects
-  FOR SELECT USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'mentor'
-  ));
+  FOR SELECT USING (user_id = auth.uid() OR public.is_mentor());
 
 CREATE POLICY "Users can manage own projects" ON projects
   FOR ALL USING (user_id = auth.uid());
 
 CREATE POLICY "Users can read own achievements" ON user_achievements
-  FOR SELECT USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'mentor'
-  ));
+  FOR SELECT USING (user_id = auth.uid() OR public.is_mentor());
 
 CREATE POLICY "Users can read own messages" ON mentor_messages
   FOR SELECT USING (to_user_id = auth.uid() OR from_user_id = auth.uid());
 
 CREATE POLICY "Mentors can send messages" ON mentor_messages
-  FOR INSERT WITH CHECK (EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'mentor'
-  ));
+  FOR INSERT WITH CHECK (public.is_mentor());
 
 CREATE POLICY "Users can read own activity" ON daily_activity
-  FOR SELECT USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'mentor'
-  ));
+  FOR SELECT USING (user_id = auth.uid() OR public.is_mentor());
 
 CREATE POLICY "Users can manage own activity" ON daily_activity
   FOR ALL USING (user_id = auth.uid());

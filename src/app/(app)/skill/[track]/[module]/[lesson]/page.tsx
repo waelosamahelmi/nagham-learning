@@ -53,7 +53,7 @@ export default function LessonPage() {
           .select("ai_conversation, status")
           .eq("user_id", userId!)
           .eq("lesson_id", lessonId)
-          .single(),
+          .maybeSingle(),
       ]);
 
       if (lessonData) {
